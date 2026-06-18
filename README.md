@@ -2,7 +2,7 @@
 
 Simulador interativo das variáveis técnicas de exposição em radiologia convencional — **kV**, **mA** e **mAs** — e seus efeitos sobre o feixe de fótons de raios-X.
 
-🔗 **[Abrir o Simulador](https://SEU-USUARIO.github.io/radiologia-simulador/)**
+🔗 **[Abrir o Simulador](https://henriquefreire.github.io/Simulador-de-radiacao-POC/)**
 
 ---
 
