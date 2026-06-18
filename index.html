@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador Radiológico — kV · mA · mAs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-label">TÉCNICO EM RADIOLOGIA</div>
+      <h1 class="header-title">Simulador de Parâmetros</h1>
+      <p class="header-sub">Explore como <strong>kV</strong>, <strong>mA</strong> e <strong>mAs</strong> afetam o feixe de fótons de raios-X</p>
+    </div>
+    <div class="header-tube" aria-hidden="true">
+      <div class="tube-anode"></div>
+      <div class="tube-beam" id="tube-beam"></div>
+      <div class="tube-cathode"></div>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- CONTROLS -->
+    <section class="panel controls-panel" aria-label="Parâmetros de exposição">
+      <h2 class="panel-title">Parâmetros</h2>
+      <div class="controls-grid">
+
+        <div class="control-card" id="kv-card">
+          <div class="ctrl-header">
+            <span class="ctrl-symbol">kV</span>
+            <span class="ctrl-name">Quilovolts</span>
+          </div>
+          <div class="ctrl-desc">Tensão do tubo — controla a <em>energia</em> dos fótons</div>
+          <div class="ctrl-value-row">
+            <output class="ctrl-value" id="kv-display">80</output>
+            <span class="ctrl-unit">kV</span>
+          </div>
+          <input type="range" class="slider slider-kv" id="kv-input"
+                 min="40" max="150" value="80" step="1"
+                 aria-label="Tensão kV" aria-valuemin="40" aria-valuemax="150" />
+          <div class="ctrl-range-labels"><span>40</span><span>150</span></div>
+        </div>
+
+        <div class="control-card" id="ma-card">
+          <div class="ctrl-header">
+            <span class="ctrl-symbol">mA</span>
+            <span class="ctrl-name">Miliampères</span>
+          </div>
+          <div class="ctrl-desc">Corrente do filamento — controla a <em>quantidade</em> de fótons/s</div>
+          <div class="ctrl-value-row">
+            <output class="ctrl-value" id="ma-display">200</output>
+            <span class="ctrl-unit">mA</span>
+          </div>
+          <input type="range" class="slider slider-ma" id="ma-input"
+                 min="50" max="800" value="200" step="50"
+                 aria-label="Corrente mA" aria-valuemin="50" aria-valuemax="800" />
+          <div class="ctrl-range-labels"><span>50</span><span>800</span></div>
+        </div>
+
+        <div class="control-card" id="t-card">
+          <div class="ctrl-header">
+            <span class="ctrl-symbol">mAs</span>
+            <span class="ctrl-name">Miliampère-segundo</span>
+          </div>
+          <div class="ctrl-desc">Carga total — controla a <em>quantidade total</em> de fótons</div>
+          <div class="ctrl-value-row">
+            <output class="ctrl-value" id="t-display">20</output>
+            <span class="ctrl-unit">mAs</span>
+          </div>
+          <input type="range" class="slider slider-t" id="t-input"
+                 min="1" max="200" value="20" step="1"
+                 aria-label="Carga mAs" aria-valuemin="1" aria-valuemax="200" />
+          <div class="ctrl-range-labels"><span>1</span><span>200</span></div>
+        </div>
+
+      </div>
+
+      <!-- derived info -->
+      <div class="mas-result">
+        <div class="mas-formula">t = mAs ÷ mA</div>
+        <div class="mas-value-wrap">
+          <output class="mas-value" id="mas-display" style="color:var(--tx2);font-size:1.5rem">0.10</output>
+          <span class="mas-unit">s</span>
+        </div>
+        <div class="mas-sub" id="mas-sub">Tempo de exposição equivalente (mAs ÷ mA)</div>
+      </div>
+    </section>
+
+    <!-- SPECTRUM -->
+    <section class="panel spectrum-panel" aria-label="Espectro de fótons">
+      <h2 class="panel-title">Espectro do Feixe</h2>
+      <p class="panel-desc">Distribuição de energia dos fótons produzidos — Bremsstrahlung (contínuo) + Radiação Característica (picos)</p>
+      <div class="spectrum-wrap">
+        <canvas id="spectrum-canvas" aria-label="Gráfico do espectro de raios-X"></canvas>
+      </div>
+      <div class="spectrum-legend">
+        <span class="legend-item"><span class="legend-swatch swatch-brem"></span>Bremsstrahlung</span>
+        <span class="legend-item"><span class="legend-swatch swatch-char"></span>Radiação característica (W)</span>
+        <span class="legend-item"><span class="legend-swatch swatch-emax"></span>Emáx = kV em keV</span>
+      </div>
+    </section>
+
+    <!-- EFFECTS GRID -->
+    <section class="panel effects-panel" aria-label="Efeitos no feixe">
+      <h2 class="panel-title">Efeitos no Feixe e na Imagem</h2>
+      <div class="effects-grid">
+
+        <div class="effect-card">
+          <div class="effect-icon icon-quant" aria-hidden="true"></div>
+          <div class="effect-label">Quantidade de fótons</div>
+          <div class="bar-track" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+            <div class="bar-fill fill-quant" id="bar-quant"></div>
+          </div>
+          <div class="effect-meta" id="meta-quant">—</div>
+          <div class="effect-driver">Controlado por: <strong>mAs</strong></div>
+        </div>
+
+        <div class="effect-card">
+          <div class="effect-icon icon-energy" aria-hidden="true"></div>
+          <div class="effect-label">Energia dos fótons</div>
+          <div class="bar-track">
+            <div class="bar-fill fill-energy" id="bar-energy"></div>
+          </div>
+          <div class="effect-meta" id="meta-energy">—</div>
+          <div class="effect-driver">Controlado por: <strong>kV</strong></div>
+        </div>
+
+        <div class="effect-card">
+          <div class="effect-icon icon-penet" aria-hidden="true"></div>
+          <div class="effect-label">Poder de penetração</div>
+          <div class="bar-track">
+            <div class="bar-fill fill-penet" id="bar-penet"></div>
+          </div>
+          <div class="effect-meta" id="meta-penet">—</div>
+          <div class="effect-driver">Controlado por: <strong>kV</strong></div>
+        </div>
+
+        <div class="effect-card">
+          <div class="effect-icon icon-contrast" aria-hidden="true"></div>
+          <div class="effect-label">Contraste da imagem</div>
+          <div class="bar-track">
+            <div class="bar-fill fill-contrast" id="bar-contrast"></div>
+          </div>
+          <div class="effect-meta" id="meta-contrast">—</div>
+          <div class="effect-driver">Inverso do: <strong>kV</strong></div>
+        </div>
+
+        <div class="effect-card">
+          <div class="effect-icon icon-density" aria-hidden="true"></div>
+          <div class="effect-label">Densidade ótica</div>
+          <div class="bar-track">
+            <div class="bar-fill fill-density" id="bar-density"></div>
+          </div>
+          <div class="effect-meta" id="meta-density">—</div>
+          <div class="effect-driver">Controlado por: <strong>mAs + kV</strong></div>
+        </div>
+
+        <div class="effect-card">
+          <div class="effect-icon icon-dose" aria-hidden="true"></div>
+          <div class="effect-label">Dose no paciente</div>
+          <div class="bar-track">
+            <div class="bar-fill fill-dose" id="bar-dose"></div>
+          </div>
+          <div class="effect-meta" id="meta-dose">—</div>
+          <div class="effect-driver">∝ <strong>mAs × kV²</strong></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- RULES -->
+    <section class="panel rules-panel" aria-label="Regras práticas">
+      <h2 class="panel-title">Regras Práticas</h2>
+      <div class="rules-grid">
+        <div class="rule-card rule-kv">
+          <div class="rule-tag">kV</div>
+          <p><strong>Tensão → Qualidade do feixe.</strong> Aumentar kV eleva a energia máxima dos fótons (Emáx = kV em keV) e o poder de penetração. Reduz o contraste pois os tecidos absorvem proporções mais semelhantes de fótons de alta energia.</p>
+          <p class="rule-formula">Emáx (keV) = kV aplicado</p>
+        </div>
+        <div class="rule-card rule-mas">
+          <div class="rule-tag">mAs</div>
+          <p><strong>Carga → Quantidade de fótons.</strong> Dobrar o mAs dobra o número de fótons que chegam ao detector, dobrando a densidade ótica e a dose. Não altera a energia individual dos fótons.</p>
+          <p class="rule-formula">mAs = mA × t(s)</p>
+        </div>
+        <div class="rule-card rule-15">
+          <div class="rule-tag">Regra dos 15 kV</div>
+          <p><strong>+15 kV ≈ dobrar o mAs.</strong> Para manter o mesmo enegrecimento, ao aumentar 15 kV pode-se reduzir o mAs pela metade — diminuindo dose e borrão de movimento, ao custo de menor contraste.</p>
+          <p class="rule-formula">+15 kV → mAs ÷ 2 (mesma exposição)</p>
+        </div>
+        <div class="rule-card rule-dose">
+          <div class="rule-tag">Dose</div>
+          <p><strong>Dose é proporcional a kV² × mAs.</strong> Pequenas variações de kV têm grande impacto na dose. A otimização (princípio ALARA) busca o menor mAs e kV adequados à penetração necessária.</p>
+          <p class="rule-formula">Dose ∝ kV² × mAs</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPARISON TABLE -->
+    <section class="panel table-panel" aria-label="Tabela comparativa">
+      <h2 class="panel-title">Tabela Comparativa</h2>
+      <div class="table-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>Parâmetro</th>
+              <th>O que controla</th>
+              <th>Energia dos fótons</th>
+              <th>Quantidade de fótons</th>
+              <th>Contraste</th>
+              <th>Densidade ótica</th>
+              <th>Dose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="param-cell param-kv">↑ kV</td>
+              <td>Tensão / energia</td>
+              <td class="up">↑ Aumenta</td>
+              <td class="neutral">~ Leve aumento</td>
+              <td class="down">↓ Diminui</td>
+              <td class="up">↑ Aumenta</td>
+              <td class="up">↑↑ (∝ kV²)</td>
+            </tr>
+            <tr>
+              <td class="param-cell param-ma">↑ mA</td>
+              <td>Corrente / fótons/s</td>
+              <td class="neutral">— Sem efeito</td>
+              <td class="up">↑ Proporcional</td>
+              <td class="neutral">— Sem efeito</td>
+              <td class="up">↑ Aumenta</td>
+              <td class="up">↑ Proporcional</td>
+            </tr>
+            <tr>
+              <td class="param-cell param-mas">↑ mAs</td>
+              <td>Fótons totais</td>
+              <td class="neutral">— Sem efeito</td>
+              <td class="up">↑ Proporcional</td>
+              <td class="neutral">— Sem efeito</td>
+              <td class="up">↑ Proporcional</td>
+              <td class="up">↑ Proporcional</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Simulador educacional — Curso Técnico em Radiologia &nbsp;·&nbsp;
+       <a href="https://github.com/HenriqueFreire/Simulador-de-radiacao-POC" target="_blank" rel="noopener">Ver no GitHub</a>
+    </p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
